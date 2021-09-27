@@ -2,7 +2,7 @@ import { REQUEST_STATE } from '../constants';
 
 export const initialState = {
   fetchState: REQUEST_STATE.INITIAL,
-  restaurantsLists: [],
+  restaurantsList: [],
 };
 
 export const restaurantsActionTypes = {

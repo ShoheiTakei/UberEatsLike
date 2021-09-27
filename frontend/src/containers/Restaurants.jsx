@@ -1,19 +1,31 @@
-import React, { Fragment, useEffect, useReducer } from 'react';
+// --- useReducerを追加 ---
+import React, { Fragment, useReducer, useEffect } from 'react';
 import styled from 'styled-components';
+import { Link } from 'react-router-dom';
+
+// components（MaterialUIのUIライブラリからコンポーネントをimportしている）
+import Skeleton from '@material-ui/lab/Skeleton';
 
 // apis
 import { fetchRestaurants } from '../apis/restaurants';
 
+// --- ここから追加 ---
 // reducers
 import {
   initialState,
   restaurantsActionTypes,
   restaurantsReducer,
 } from '../reducers/restaurants';
+// --- ここまで追加 ---
+
+// constants
+import { REQUEST_STATE } from '../constants';
 
 // images
 import MainLogo from '../images/logo.png';
 import MainCoverImage from '../images/main-cover-image.png';
+
+import RestaurantImage from '../images/restaurant-image.jpg';
 
 const HeaderWrapper = styled.div`
   display: flex;
@@ -33,19 +45,40 @@ const MainCover = styled.img`
   height: 600px;
 `;
 
+const RestaurantsContentsList = styled.div`
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 150px;
+`;
+
+const RestaurantsContentWrapper = styled.div`
+  width: 450px;
+  height: 300px;
+  padding: 48px;
+`;
+
+const RestaurantsImageNode = styled.img`
+  width: 100%;
+`;
+
+const MainText = styled.div`
+  color: black;
+  font-size: 18px;
+`;
+
+const SubText = styled.div`
+  color: black;
+  font-size: 12px;
+`;
+
 export const Restaurants = () => {
-  // useStateでいうところのstateと、それを更新するためのupdate関数に近い宣言と覚えておけばいいでしょう。
-  // ちなみにここも命名は自由ですので、例えばrestaurantsState, restaurantsDispatchなどと変えることもできます。
   const [state, dispatch] = useReducer(restaurantsReducer, initialState);
 
   useEffect(() => {
-    // dispatchはstateを直接変更するためのものではありません。stateとは依存しない関数です。
-    // dispatchはreducerを通じて間接的に、stateを変更させます
     dispatch({ type: restaurantsActionTypes.FETCHING });
     fetchRestaurants().then((data) =>
       dispatch({
         type: restaurantsActionTypes.FETCH_SUCCESS,
-        // ペイロードデータ=通信に含まれるデータのこと
         payload: {
           restaurants: data.restaurants,
         },
@@ -61,9 +94,37 @@ export const Restaurants = () => {
       <MainCoverImageWrapper>
         <MainCover src={MainCoverImage} alt="main cover" />
       </MainCoverImageWrapper>
-      {state.restaurantsList.map((restaurant) => (
-        <div>{restaurant.name}</div>
-      ))}
+      <RestaurantsContentsList>
+        {/* 下記コードは、三項演算子になっている */}
+        {state.fetchState === REQUEST_STATE.LOADING ? (
+          <Fragment>
+            <Skeleton variant="rect" width={450} height={300} />
+            <Skeleton variant="rect" width={450} height={300} />
+            <Skeleton variant="rect" width={450} height={300} />
+          </Fragment>
+        ) : (
+          state.restaurantsList.map((item, index) => (
+            <Link
+              to={`/restaurants/${item.id}/foods`}
+              key={index}
+              style={{ textDecoration: 'none' }}
+            >
+              <RestaurantsContentWrapper>
+                <RestaurantsImageNode src={RestaurantImage} />
+                <MainText>{item.name}</MainText>
+                <SubText>{`配送料：${item.fee}円 ${item.time_required}分`}</SubText>
+              </RestaurantsContentWrapper>
+            </Link>
+          ))
+        )}
+      </RestaurantsContentsList>
     </Fragment>
   );
 };
+
+{
+  /* restaurantsListは配列形式のデータでした。
+      なので、state.restaurantsList.map(...とすることで、
+      配列のデータを一つずつrestaurantという変数名で参照させます。
+      最終的には配列の中のデータの数だけ描画されるはずです */
+}
