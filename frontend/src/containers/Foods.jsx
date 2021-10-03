@@ -1,4 +1,4 @@
-import React, { Fragment, useReducer, useEffect } from 'react';
+import React, { Fragment, useReducer, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 
@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { LocalMallIcon } from '../components/Icons';
 import { FoodWrapper } from '../components/FoodWrapper';
 import Skeleton from '@material-ui/lab/Skeleton';
+import { FoodOrderDialog } from '../components/FoodOrderDialog';
 
 // reducers
 import {
@@ -58,6 +59,15 @@ const ItemWrapper = styled.div`
 export const Foods = ({ match }) => {
   const [foodsState, dispatch] = useReducer(foodsReducer, foodsInitialState);
 
+  const initialState = {
+    isOpenOrderDialog: false,
+    selectedFood: null,
+    // selectedFoodCountとは、selectedFoodがいくつ選ばれているか？という数量を表す値です。
+    selectedFoodCount: 1,
+  };
+
+  const [state, setState] = useState(initialState);
+
   useEffect(() => {
     // React Routerの場合matchオブジェクトを受け取り、match.params.hogeのかたちでパラメーターを抽出することができます。
     // ここでは例えばhttp://localhost:3000/restaurants/1/foodsのようなURLでアクセスが来た場合に、
@@ -97,17 +107,43 @@ export const Foods = ({ match }) => {
             ))}
           </Fragment>
         ) : (
+          // foodsState.foodsListにはAPIから取得したフード一覧が入ります。
+          // その数だけFoodWrapperを描画します。
+          // onClickFoodWrapperに渡しているのは一旦ただのconsole.log()です。
           foodsState.foodsList.map((food) => (
             <ItemWrapper key={food.id}>
               <FoodWrapper
                 food={food}
-                onClickFoodWrapper={(food) => console.log(food)}
+                onClickFoodWrapper={(food) =>
+                  setState({
+                    ...state,
+                    isOpenOrderDialog: true,
+                    selectedFood: food,
+                  })
+                }
                 imageUrl={FoodImage}
               />
             </ItemWrapper>
           ))
         )}
       </FoodsList>
+      {/* state.isOpenOrderDialog && <Hoge /> ようにすることで
+      &&より前の値がtrueの場合に、&&よりあとの要素をレンダリングするようJSXが認識します。
+      つまり下記の例の場合、state.isOpenOrderDialogがtrueの場合にFoodOrderDialogコンポーネントをレンダリングしてくれるようになります。 */}
+      {state.isOpenOrderDialog && (
+        <FoodOrderDialog
+          food={state.selectedFood}
+          isOpen={state.isOpenOrderDialog}
+          // モーダルの外側(黒い部分)をクリックすると、onCloseに渡した関数setState({...state, isOpenOrderDialog: false })が実行されて
+          // stateが更新され、モーダルに渡したstate.isOpenOrderDialogがfalseになります。そして結果的にモーダルも閉じる、という仕組みです。
+          onClose={() =>
+            setState({
+              ...state,
+              isOpenOrderDialog: false,
+            })
+          }
+        />
+      )}
     </Fragment>
   );
 };
