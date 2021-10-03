@@ -56,6 +56,10 @@ const ItemWrapper = styled.div`
   margin: 16px;
 `;
 
+const submitOrder = () => {
+  console.log('登録ボタンが押された!');
+};
+
 export const Foods = ({ match }) => {
   const [foodsState, dispatch] = useReducer(foodsReducer, foodsInitialState);
 
@@ -132,14 +136,32 @@ export const Foods = ({ match }) => {
       つまり下記の例の場合、state.isOpenOrderDialogがtrueの場合にFoodOrderDialogコンポーネントをレンダリングしてくれるようになります。 */}
       {state.isOpenOrderDialog && (
         <FoodOrderDialog
-          food={state.selectedFood}
           isOpen={state.isOpenOrderDialog}
+          food={state.selectedFood}
+          countNumber={state.selectedFoodCount}
+          onClickCountUp={() =>
+            setState({
+              ...state,
+              selectedFoodCount: state.selectedFoodCount + 1,
+            })
+          }
+          onClickCountDown={() =>
+            setState({
+              ...state,
+              selectedFoodCount: state.selectedFoodCount - 1,
+            })
+          }
+          // 先ほど作った関数を渡します
+          onClickOrder={() => submitOrder()}
           // モーダルの外側(黒い部分)をクリックすると、onCloseに渡した関数setState({...state, isOpenOrderDialog: false })が実行されて
           // stateが更新され、モーダルに渡したstate.isOpenOrderDialogがfalseになります。そして結果的にモーダルも閉じる、という仕組みです。
+          // モーダルを閉じる時はすべてのstateを初期化する
           onClose={() =>
             setState({
               ...state,
               isOpenOrderDialog: false,
+              selectedFood: null,
+              selectedFoodCount: 1,
             })
           }
         />
