@@ -57,6 +57,7 @@ const PriceWrapper = styled.div`
 // もう一つがonCloseで、こちらは関数を受け取ります。モーダルを閉じるために行う関数です。
 export const FoodOrderDialog = ({
   food,
+  countNumber,
   isOpen,
   onClose,
   onClickCountUp,

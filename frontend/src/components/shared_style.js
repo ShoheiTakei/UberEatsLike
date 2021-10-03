@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-import { COLORS } from '../styled_components';
+import { COLORS } from '../style_constants';
 
 // ボタンの元になるコンポーネント
 export const BaseButton = styled.button`
