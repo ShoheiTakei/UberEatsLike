@@ -1,12 +1,12 @@
 import React, { Fragment, useReducer, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Link } from 'react-router-dom';
+import { useHistory, Link } from 'react-router-dom';
 
 // components
 import { LocalMallIcon } from '../components/Icons';
 import { FoodWrapper } from '../components/FoodWrapper';
+import { NewOrderConfirmDialog } from '../components/NewOrderConfirmDialog';
 import Skeleton from '@material-ui/lab/Skeleton';
-import { FoodOrderDialog } from '../components/FoodOrderDialog';
 
 // reducers
 import {
@@ -17,12 +17,15 @@ import {
 
 // apis
 import { fetchFoods } from '../apis/foods';
+import { postLineFoods, replaceLineFoods } from '../apis/line_foods';
 
 // images
 import MainLogo from '../images/logo.png';
+import { FoodOrderDialog } from '../components/FoodOrderDialog';
 import FoodImage from '../images/food-image.jpg';
 
 // constants
+import { HTTP_STATUS_CODE } from '../constants';
 import { COLORS } from '../style_constants';
 import { REQUEST_STATE } from '../constants';
 
@@ -40,7 +43,6 @@ const ColoredBagIcon = styled(LocalMallIcon)`
   color: ${COLORS.MAIN};
 `;
 
-// --- ここから追加 ---
 const MainLogoImage = styled.img`
   height: 90px;
 `;
@@ -56,26 +58,26 @@ const ItemWrapper = styled.div`
   margin: 16px;
 `;
 
-const submitOrder = () => {
-  console.log('登録ボタンが押された!');
-};
-
 export const Foods = ({ match }) => {
-  const [foodsState, dispatch] = useReducer(foodsReducer, foodsInitialState);
-
   const initialState = {
     isOpenOrderDialog: false,
     selectedFood: null,
-    // selectedFoodCountとは、selectedFoodがいくつ選ばれているか？という数量を表す値です。
     selectedFoodCount: 1,
+    // isOpenNewOrderDialogはNewOrderConfirmDialogコンポーネントをレンダリングする/しないのフラグです。
+    isOpenNewOrderDialog: false,
+    // existingRestaurantNameとnewRestaurantNameは
+    // それぞれNewOrderConfirmDialogコンポーネントにprops経由で渡したい元々仮注文に入っていた店舗名と、新しく入った店舗名です
+    existingRestaurantName: '',
+    newRestaurantName: '',
   };
-
   const [state, setState] = useState(initialState);
+  const [foodsState, dispatch] = useReducer(foodsReducer, foodsInitialState);
+  const history = useHistory();
 
+  // React Routerの場合matchオブジェクトを受け取り、match.params.hogeのかたちでパラメーターを抽出することができます。
+  // ここでは例えばhttp://localhost:3000/restaurants/1/foodsのようなURLでアクセスが来た場合に、
+  // 「restaurantsIdは 1 です」という文字列が画面に表示されることを期待します。
   useEffect(() => {
-    // React Routerの場合matchオブジェクトを受け取り、match.params.hogeのかたちでパラメーターを抽出することができます。
-    // ここでは例えばhttp://localhost:3000/restaurants/1/foodsのようなURLでアクセスが来た場合に、
-    // 「restaurantsIdは 1 です」という文字列が画面に表示されることを期待します。
     dispatch({ type: foodsActionTypes.FETCHING });
     fetchFoods(match.params.restaurantsId).then((data) => {
       dispatch({
@@ -86,6 +88,36 @@ export const Foods = ({ match }) => {
       });
     });
   }, []);
+
+  const submitOrder = () => {
+    postLineFoods({
+      // selectedFoodやselectedFoodCountはフードitemをクリックしたとき、モーダルでカウントを変更した時にセットされているはずです。
+      foodId: state.selectedFood.id,
+      count: state.selectedFoodCount,
+    })
+      .then(() => history.push('/orders'))
+      .catch((e) => {
+        if (e.response.status === HTTP_STATUS_CODE.NOT_ACCEPTABLE) {
+          setState({
+            ...state,
+            isOpenOrderDialog: false,
+            isOpenNewOrderDialog: true,
+            existingRestaurantName: e.response.data.existing_restaurant,
+            newRestaurantName: e.response.data.new_restaurant,
+          });
+        } else {
+          throw e;
+        }
+      });
+  };
+
+  const replaceOrder = () => {
+    replaceLineFoods({
+      foodId: state.selectedFood.id,
+      count: state.selectedFoodCount,
+      // history.push('/orders')が実行されたタイミングで/ordersページ、つまり注文ページへと遷移します。実際はOrders.jsxがレンダリングされます。
+    }).then(() => history.push('/orders'));
+  };
 
   return (
     <Fragment>
@@ -102,8 +134,6 @@ export const Foods = ({ match }) => {
       <FoodsList>
         {foodsState.fetchState === REQUEST_STATE.LOADING ? (
           <Fragment>
-            {/* ここでは、12個のSkeletonコンポーネントを並べています。 
-            [...Array(12).keys()=> [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]となる*/}
             {[...Array(12).keys()].map((i) => (
               <ItemWrapper key={i}>
                 <Skeleton key={i} variant="rect" width={450} height={180} />
@@ -111,9 +141,6 @@ export const Foods = ({ match }) => {
             ))}
           </Fragment>
         ) : (
-          // foodsState.foodsListにはAPIから取得したフード一覧が入ります。
-          // その数だけFoodWrapperを描画します。
-          // onClickFoodWrapperに渡しているのは一旦ただのconsole.log()です。
           foodsState.foodsList.map((food) => (
             <ItemWrapper key={food.id}>
               <FoodWrapper
@@ -121,8 +148,8 @@ export const Foods = ({ match }) => {
                 onClickFoodWrapper={(food) =>
                   setState({
                     ...state,
-                    isOpenOrderDialog: true,
                     selectedFood: food,
+                    isOpenOrderDialog: true,
                   })
                 }
                 imageUrl={FoodImage}
@@ -130,10 +157,10 @@ export const Foods = ({ match }) => {
             </ItemWrapper>
           ))
         )}
-      </FoodsList>
-      {/* state.isOpenOrderDialog && <Hoge /> ようにすることで
+        {/* state.isOpenOrderDialog && <Hoge /> ようにすることで
       &&より前の値がtrueの場合に、&&よりあとの要素をレンダリングするようJSXが認識します。
       つまり下記の例の場合、state.isOpenOrderDialogがtrueの場合にFoodOrderDialogコンポーネントをレンダリングしてくれるようになります。 */}
+      </FoodsList>
       {state.isOpenOrderDialog && (
         <FoodOrderDialog
           isOpen={state.isOpenOrderDialog}
@@ -151,11 +178,7 @@ export const Foods = ({ match }) => {
               selectedFoodCount: state.selectedFoodCount - 1,
             })
           }
-          // 先ほど作った関数を渡します
           onClickOrder={() => submitOrder()}
-          // モーダルの外側(黒い部分)をクリックすると、onCloseに渡した関数setState({...state, isOpenOrderDialog: false })が実行されて
-          // stateが更新され、モーダルに渡したstate.isOpenOrderDialogがfalseになります。そして結果的にモーダルも閉じる、という仕組みです。
-          // モーダルを閉じる時はすべてのstateを初期化する
           onClose={() =>
             setState({
               ...state,
@@ -164,6 +187,18 @@ export const Foods = ({ match }) => {
               selectedFoodCount: 1,
             })
           }
+        />
+      )}
+      {state.isOpenNewOrderDialog && (
+        <NewOrderConfirmDialog
+          isOpen={state.isOpenNewOrderDialog}
+          // モーダルの外側(黒い部分)をクリックすると、onCloseに渡した関数setState({...state, isOpenOrderDialog: false })が実行されて
+          // stateが更新され、モーダルに渡したstate.isOpenOrderDialogがfalseになります。そして結果的にモーダルも閉じる、という仕組みです。
+          // モーダルを閉じる時はすべてのstateを初期化する
+          onClose={() => setState({ ...state, isOpenNewOrderDialog: false })}
+          existingRestaurantName={state.existingRestaurantName}
+          newRestaurantName={state.newRestaurantName}
+          onClickSubmit={() => replaceOrder()}
         />
       )}
     </Fragment>
