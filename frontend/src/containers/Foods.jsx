@@ -115,8 +115,9 @@ export const Foods = ({ match }) => {
     replaceLineFoods({
       foodId: state.selectedFood.id,
       count: state.selectedFoodCount,
+    })
       // history.push('/orders')が実行されたタイミングで/ordersページ、つまり注文ページへと遷移します。実際はOrders.jsxがレンダリングされます。
-    }).then(() => history.push('/orders'));
+      .then(() => history.push('/orders'));
   };
 
   return (
