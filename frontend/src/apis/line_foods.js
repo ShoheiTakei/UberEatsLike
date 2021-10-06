@@ -29,3 +29,17 @@ export const replaceLineFoods = (params) => {
       throw e;
     });
 };
+
+export const fetchLineFoods = () => {
+  return (
+    axios
+      .get(lineFoods)
+      .then((res) => {
+        return res.data;
+      })
+      // 中ではthrowしているのでここで例外が発生します。もし後続の処理があってもここで停止します。
+      .catch((e) => {
+        throw e;
+      })
+  );
+};
